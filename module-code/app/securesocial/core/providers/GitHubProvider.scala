@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,10 +29,8 @@ import scala.Some
  * A GitHub provider
  *
  */
-class GitHubProvider(application: Application) extends OAuth2Provider(application) {
+class GitHubProvider(application: Application) extends OAuth2Provider(application) with GitHubResponseParser {
   val GetAuthenticatedUser = "https://api.github.com/user?access_token=%s"
-  val AccessToken = "access_token"
-  val TokenType = "token_type"
   val Message = "message"
   val Id = "id"
   val Name = "name"
@@ -41,14 +39,7 @@ class GitHubProvider(application: Application) extends OAuth2Provider(applicatio
 
   override def id = GitHubProvider.GitHub
 
-  override protected def buildInfo(response: Response): OAuth2Info = {
-    response.body.split("&|=") match {
-      case Array(AccessToken, token, TokenType, tokenType) => OAuth2Info(token, Some(tokenType), None)
-      case _ =>
-        Logger.error("[securesocial] invalid response format for accessToken")
-        throw new AuthenticationException()
-    }
-  }
+   override protected def buildInfo(response: Response): OAuth2Info = parseResponse(response)
 
   /**
    * Subclasses need to implement this method to populate the User object with profile
@@ -71,7 +62,7 @@ class GitHubProvider(application: Application) extends OAuth2Provider(applicatio
           val userId = (me \ Id).as[Int]
           val displayName = (me \ Name).asOpt[String].getOrElse("")
           val avatarUrl = (me \ AvatarUrl).asOpt[String]
-          val email = (me \ Email).asOpt[String].filter( !_.isEmpty )
+          val email = (me \ Email).asOpt[String].filter(!_.isEmpty)
           user.copy(
             identityId = IdentityId(userId.toString, id),
             fullName = displayName,
@@ -82,11 +73,26 @@ class GitHubProvider(application: Application) extends OAuth2Provider(applicatio
       }
     } catch {
       case e: Exception => {
-        Logger.error( "[securesocial] error retrieving profile information from github", e)
+        Logger.error("[securesocial] error retrieving profile information from github", e)
         throw new AuthenticationException()
       }
     }
   }
+}
+
+trait GitHubResponseParser {
+
+  private val AccessToken = s""".*access_token=([0-9a-fA-F]*).*""".r
+  private val TokenType = s""".*token_type=([^&=]*).*""".r
+
+  protected def parseResponse(response: Response): OAuth2Info =
+    (response.body, response.body) match {
+      case (AccessToken(token), TokenType(tokenType)) => OAuth2Info(token, Some(tokenType), None)
+      case _ =>
+        Logger.error("[securesocial] invalid response format for accessToken")
+        throw new AuthenticationException()
+    }
+
 }
 
 object GitHubProvider {
