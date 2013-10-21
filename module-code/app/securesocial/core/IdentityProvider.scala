@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -71,11 +71,10 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * @tparam A
    * @return
    */
-  def authenticate[A]()(implicit request: Request[A]):Either[Result, Identity] = {
+  def authenticate[A]()(implicit request: Request[A]): Either[Result, Identity] = {
     doAuth().fold(
       result => Left(result),
-      u =>
-      {
+      u => {
         val user = fillProfile(u)
         val saved = UserService.save(user)
         Right(saved)
@@ -88,7 +87,7 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * to the provider url.
    * @return
    */
-  def authenticationUrl:String = RoutesHelper.authenticate(id).url
+  def authenticationUrl: String = RoutesHelper.authenticate(id).url
 
   /**
    * The property key used for all the provider properties.
@@ -104,7 +103,7 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    */
   def loadProperty(property: String): Option[String] = {
     val result = application.configuration.getString(propertyKey + property)
-    if ( !result.isDefined ) {
+    if (!result.isDefined) {
       Logger.error("[securesocial] Missing property " + property + " for provider " + id)
     }
     result
@@ -119,7 +118,7 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * @tparam A
    * @return Either a Result or a User
    */
-  def doAuth[A]()(implicit request: Request[A]):Either[Result, SocialUser]
+  def doAuth[A]()(implicit request: Request[A]): Either[Result, SocialUser]
 
   /**
    * Subclasses need to implement this method to populate the User object with profile
@@ -128,9 +127,9 @@ abstract class IdentityProvider(application: Application) extends Plugin with Re
    * @param user The user object to be populated
    * @return A copy of the user object with the new values set
    */
-  def fillProfile(user: SocialUser):SocialUser
+  def fillProfile(user: SocialUser): SocialUser
 
-  protected def throwMissingPropertiesException() {
+  protected def throwMissingPropertiesException(): Nothing = {
     val msg = "[securesocial] Missing properties for provider '%s'. Verify your configuration file is properly set.".format(id)
     Logger.error(msg)
     throw new RuntimeException(msg)
@@ -147,7 +146,7 @@ object IdentityProvider {
   val sslEnabled: Boolean = {
     import Play.current
     val result = current.configuration.getBoolean("securesocial.ssl").getOrElse(false)
-    if ( !result && Play.isProd ) {
+    if (!result && Play.isProd) {
       Logger.warn(
         "[securesocial] IMPORTANT: Play is running in production mode but you did not turn SSL on for SecureSocial." +
           "Not using SSL can make it really easy for an attacker to steal your users credentials and/or the " +
@@ -161,4 +160,5 @@ object IdentityProvider {
     import scala.concurrent.duration._
     10 seconds
   }
+
 }

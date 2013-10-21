@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,12 +20,13 @@ import play.api.libs.ws.WS
 import play.api.{Application, Logger}
 import play.api.libs.json.JsObject
 import securesocial.core._
+import securesocial.core.providers.responseParsing.ProviderJsonResponseParser
 
 
 /**
  * A Google OAuth2 Provider
  */
-class GoogleProvider(application: Application) extends OAuth2Provider(application) {
+class GoogleProvider(application: Application) extends OAuth2Provider(application) with ProviderJsonResponseParser {
   val UserInfoApi = "https://www.googleapis.com/oauth2/v1/userinfo?access_token="
   val Error = "error"
   val Message = "message"
@@ -50,17 +51,17 @@ class GoogleProvider(application: Application) extends OAuth2Provider(applicatio
       (me \ Error).asOpt[JsObject] match {
         case Some(error) =>
           val message = (error \ Message).as[String]
-          val errorType = ( error \ Type).as[String]
+          val errorType = (error \ Type).as[String]
           Logger.error("[securesocial] error retrieving profile information from Google. Error type = %s, message = %s"
-            .format(errorType,message))
+            .format(errorType, message))
           throw new AuthenticationException()
         case _ =>
           val userId = (me \ Id).as[String]
           val firstName = (me \ GivenName).asOpt[String]
           val lastName = (me \ FamilyName).asOpt[String]
           val fullName = (me \ Name).asOpt[String]
-          val avatarUrl = ( me \ Picture).asOpt[String]
-          val email = ( me \ Email).asOpt[String]
+          val avatarUrl = (me \ Picture).asOpt[String]
+          val email = (me \ Email).asOpt[String]
           user.copy(
             identityId = IdentityId(userId, id),
             firstName = firstName.getOrElse(""),
@@ -72,7 +73,7 @@ class GoogleProvider(application: Application) extends OAuth2Provider(applicatio
       }
     } catch {
       case e: Exception => {
-        Logger.error( "[securesocial] error retrieving profile information from Google", e)
+        Logger.error("[securesocial] error retrieving profile information from Google", e)
         throw new AuthenticationException()
       }
     }

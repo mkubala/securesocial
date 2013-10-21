@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,34 +23,33 @@ import play.api.cache.Cache
 import Play.current
 import play.api.mvc.{Results, Result, Request}
 import providers.utils.RoutesHelper
-import play.api.libs.ws.{Response, WS}
-import scala.concurrent.TimeoutException
+import play.api.libs.ws.WS
+import securesocial.core.providers.responseParsing.ProviderResponseParser
+
 
 /**
  * Base class for all OAuth2 providers
  */
-abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = true) extends IdentityProvider(application) {
+abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = true) extends IdentityProvider(application) with ProviderResponseParser {
+
   val settings = createSettings()
 
   def authMethod = AuthenticationMethod.OAuth2
 
   private def createSettings(): OAuth2Settings = {
     val result = for {
-      authorizationUrl <- loadProperty(OAuth2Settings.AuthorizationUrl) ;
-      accessToken <- loadProperty(OAuth2Settings.AccessTokenUrl) ;
-      clientId <- loadProperty(OAuth2Settings.ClientId) ;
+      authorizationUrl <- loadProperty(OAuth2Settings.AuthorizationUrl);
+      accessToken <- loadProperty(OAuth2Settings.AccessTokenUrl);
+      clientId <- loadProperty(OAuth2Settings.ClientId);
       clientSecret <- loadProperty(OAuth2Settings.ClientSecret)
     } yield {
       val scope = application.configuration.getString(propertyKey + OAuth2Settings.Scope)
       OAuth2Settings(authorizationUrl, accessToken, clientId, clientSecret, scope)
     }
-    if ( !result.isDefined ) {
-      throwMissingPropertiesException()
-    }
-    result.get
+    result.getOrElse(throwMissingPropertiesException())
   }
 
-  private def getAccessToken[A](code: String)(implicit request: Request[A]):OAuth2Info = {
+  private def getAccessToken[A](code: String)(implicit request: Request[A]): OAuth2Info = {
     val params = Map(
       OAuth2Constants.ClientId -> Seq(settings.clientId),
       OAuth2Constants.ClientSecret -> Seq(settings.clientSecret),
@@ -69,21 +68,8 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
     }
   }
 
-  protected def buildInfo(response: Response): OAuth2Info = {
-      val json = response.json
-      if ( Logger.isDebugEnabled ) {
-        Logger.debug("[securesocial] got json back [" + json + "]")
-      }
-      OAuth2Info(
-        (json \ OAuth2Constants.AccessToken).as[String],
-        (json \ OAuth2Constants.TokenType).asOpt[String],
-        (json \ OAuth2Constants.ExpiresIn).asOpt[Int],
-        (json \ OAuth2Constants.RefreshToken).asOpt[String]
-      )
-  }
-
   def doAuth[A]()(implicit request: Request[A]): Either[Result, SocialUser] = {
-    request.queryString.get(OAuth2Constants.Error).flatMap(_.headOption).map( error => {
+    request.queryString.get(OAuth2Constants.Error).flatMap(_.headOption).map(error => {
       error match {
         case OAuth2Constants.AccessDenied => throw new AccessDeniedException()
         case _ =>
@@ -97,10 +83,10 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
       case Some(code) =>
         // we're being redirected back from the authorization server with the access code.
         val user = for (
-          // check if the state we sent is equal to the one we're receiving now before continuing the flow.
-          sessionId <- request.session.get(IdentityProvider.SessionId) ;
+        // check if the state we sent is equal to the one we're receiving now before continuing the flow.
+          sessionId <- request.session.get(IdentityProvider.SessionId);
           // todo: review this -> clustered environments
-          originalState <- Cache.getAs[String](sessionId) ;
+          originalState <- Cache.getAs[String](sessionId);
           currentState <- request.queryString.get(OAuth2Constants.State).flatMap(_.headOption) if originalState == currentState
         ) yield {
           val accessToken = getAccessToken(code)
@@ -109,10 +95,10 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
           )
           SocialUser(IdentityId("", id), "", "", "", None, None, authMethod, oAuth2Info = oauth2Info)
         }
-        if ( Logger.isDebugEnabled ) {
+        if (Logger.isDebugEnabled) {
           Logger.debug("[securesocial] user = " + user)
         }
-        user match  {
+        user match {
           case Some(u) => Right(u)
           case _ => throw new AuthenticationException()
         }
@@ -126,14 +112,16 @@ abstract class OAuth2Provider(application: Application, jsonResponse: Boolean = 
           (OAuth2Constants.RedirectUri, RoutesHelper.authenticate(id).absoluteURL(IdentityProvider.sslEnabled)),
           (OAuth2Constants.ResponseType, OAuth2Constants.Code),
           (OAuth2Constants.State, state))
-        settings.scope.foreach( s => { params = (OAuth2Constants.Scope, s) :: params })
+        settings.scope.foreach(s => {
+          params = (OAuth2Constants.Scope, s) :: params
+        })
         val url = settings.authorizationUrl +
-          params.map( p => p._1 + "=" + URLEncoder.encode(p._2, "UTF-8")).mkString("?", "&", "")
-        if ( Logger.isDebugEnabled ) {
+          params.map(p => p._1 + "=" + URLEncoder.encode(p._2, "UTF-8")).mkString("?", "&", "")
+        if (Logger.isDebugEnabled) {
           Logger.debug("[securesocial] authorizationUrl = %s".format(settings.authorizationUrl))
           Logger.debug("[securesocial] redirecting to: [%s]".format(url))
         }
-        Left(Results.Redirect( url ).withSession(request.session + (IdentityProvider.SessionId, sessionId)))
+        Left(Results.Redirect(url).withSession(request.session +(IdentityProvider.SessionId, sessionId)))
     }
   }
 }

@@ -4,12 +4,13 @@ import play.api.libs.ws.WS
 import play.api.{Application, Logger}
 import play.api.libs.json.JsObject
 import securesocial.core._
+import securesocial.core.providers.responseParsing.ProviderJsonResponseParser
 
 
 /**
  * A Vk provider
  */
-class VkProvider(application: Application) extends OAuth2Provider(application) {
+class VkProvider(application: Application) extends OAuth2Provider(application) with ProviderJsonResponseParser {
   val GetProfilesApi = "https://api.vk.com/method/getProfiles?fields=uid,first_name,last_name,photo&access_token="
   val Response = "response"
   val Id = "uid"

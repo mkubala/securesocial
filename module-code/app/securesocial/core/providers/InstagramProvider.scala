@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,22 +23,23 @@ import securesocial.core.IdentityId
 import securesocial.core.SocialUser
 import securesocial.core.AuthenticationException
 import scala.Some
+import securesocial.core.providers.responseParsing.ProviderJsonResponseParser
 
 /**
  * An Instagram provider
  *
  */
-class InstagramProvider(application: Application) extends OAuth2Provider(application) {
+class InstagramProvider(application: Application) extends OAuth2Provider(application) with ProviderJsonResponseParser {
 
   val GetAuthenticatedUser = "https://api.instagram.com/v1/users/self?access_token=%s"
   val AccessToken = "access_token"
   val TokenType = "token_type"
   val Data = "data"
   val Username = "username"
-  val FullName ="full_name"
+  val FullName = "full_name"
   val ProfilePic = "profile_picture"
   val Id = "id"
-  
+
   override def id = InstagramProvider.Instagram
 
 
@@ -62,12 +63,12 @@ class InstagramProvider(application: Application) extends OAuth2Provider(applica
           throw new AuthenticationException()
         }
         case _ => {
-          val userId = ( me \ Data \ Id ).as[String]
-          val fullName =  ( me \ Data \ FullName ).asOpt[String].getOrElse("")
-          val avatarUrl = ( me \ Data \ ProfilePic ).asOpt[String]
+          val userId = (me \ Data \ Id).as[String]
+          val fullName = (me \ Data \ FullName).asOpt[String].getOrElse("")
+          val avatarUrl = (me \ Data \ ProfilePic).asOpt[String]
 
           user.copy(
-            identityId = IdentityId(userId , id),
+            identityId = IdentityId(userId, id),
             fullName = fullName,
             avatarUrl = avatarUrl
           )
@@ -75,7 +76,7 @@ class InstagramProvider(application: Application) extends OAuth2Provider(applica
       }
     } catch {
       case e: Exception => {
-        Logger.error( "[securesocial] error retrieving profile information from Instagram", e)
+        Logger.error("[securesocial] error retrieving profile information from Instagram", e)
         throw new AuthenticationException()
       }
     }
